@@ -5,7 +5,7 @@ package edu.javacourse.studentorder.domain.register;
 // зарегистрирован ли он в городском реестре, и если да, то какой тип регистрации.
 // Если регистрации нет вообще, то второй выходной параметр = null
 
-public class  CityRegisterCheckerResponse {
+public class CityRegisterResponse {
     // зарегистрирована ли персона в Городском реестре
     private boolean existing;
     // временная регистрация или постоянная. При отсутствии регистрации вообще = null
@@ -29,7 +29,7 @@ public class  CityRegisterCheckerResponse {
 
     @Override
     public String toString() {
-        return "CityRegisterCheckerResponse{" +
+        return "CityRegisterResponse{" +
                 "existing=" + existing +
                 ", temporal=" + temporal +
                 '}';
