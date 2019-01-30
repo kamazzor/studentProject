@@ -1,0 +1,19 @@
+package edu.javacourse.studentorder.exception;
+
+//Класс с данными транспортной ошибки (нет доступа к ГРН)
+
+public class TransportException extends Exception {
+
+    public TransportException() {
+    }
+
+    public TransportException(String message){
+        super(message);
+    }
+    public TransportException(String message, Throwable cause){
+        super(message, cause);
+    }
+
+
+
+}

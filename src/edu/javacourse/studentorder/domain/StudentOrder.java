@@ -12,7 +12,7 @@ public class StudentOrder {
     private String marriageOffice;          // название Отдела ЗАГСА
     private Adult husband;                  // жених
     private Adult wife;                     // невеста
-    private List<Child> children;              // ребенок
+    private List<Child> children;           // ребенок
     public long getStudentOrderId() {
         return studentOrderId;
     }

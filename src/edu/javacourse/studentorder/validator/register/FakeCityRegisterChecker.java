@@ -10,6 +10,7 @@ import edu.javacourse.studentorder.domain.Child;
 import edu.javacourse.studentorder.domain.register.CityRegisterResponse;
 import edu.javacourse.studentorder.domain.Person;
 import edu.javacourse.studentorder.exception.CityRegisterException;
+import edu.javacourse.studentorder.exception.TransportException;
 
 public class FakeCityRegisterChecker implements CityRegisterChecker{
     //константы для примера
@@ -20,8 +21,11 @@ public class FakeCityRegisterChecker implements CityRegisterChecker{
     private static final String BAD_2 = "2001";
     private static final String ERROR_1 = "1002";
     private static final String ERROR_2 = "2002";
+    private static final String ERROR_T_1 = "1003";
+    private static final String ERROR_T_2 = "2003";
 
-    public CityRegisterResponse checkPerson(Person person) throws CityRegisterException {
+    public CityRegisterResponse checkPerson(Person person)
+            throws CityRegisterException, TransportException {
         // временная переменная для записи результата и его return
         CityRegisterResponse res = new CityRegisterResponse();
 
@@ -39,7 +43,11 @@ public class FakeCityRegisterChecker implements CityRegisterChecker{
                 res.setExisting(false);
             }
             if (ps.equals(ERROR_1) || ps.equals(ERROR_2)){
-                CityRegisterException ex = new CityRegisterException("Fake ERROR");
+                CityRegisterException ex = new CityRegisterException("1", "Fake ERROR");
+                throw ex;
+            }
+            if (ps.equals(ERROR_T_1) || ps.equals(ERROR_T_2)){
+                TransportException ex = new TransportException("Transport ERROR");
                 throw ex;
             }
         }
