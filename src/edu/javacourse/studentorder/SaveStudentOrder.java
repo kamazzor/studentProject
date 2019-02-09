@@ -5,15 +5,32 @@ import edu.javacourse.studentorder.domain.Adult;
 import edu.javacourse.studentorder.domain.Child;
 import edu.javacourse.studentorder.domain.StudentOrder;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 import java.time.LocalDate;
 
 //Сохраняет экземпляр студенческой заявки
 public class SaveStudentOrder {
     public static void main(String[] args) throws ClassNotFoundException, SQLException {
+
+        //регистрируем наш класс-драйвер на этапе его загрузки Java-машиной
+        Class.forName("org.postgresql.Driver");
+
+        //соединяемся с нашей базой данных, указывая её конкретную принадлежность к СУБД PostgreSQL
+        Connection con = DriverManager.getConnection(
+                "jdbc:postgresql://localhost:5432/jc_student",
+                "postgres", "postgres");
+
+        // создаем экземпляр выражения, с помощью которого и будем делать запросы к базе данных
+        Statement stmt = con.createStatement();
+
+        //делаем запрос в базу данных
+        ResultSet rs = stmt.executeQuery("SELECT * FROM jc_street");
+        // Печатаем все элементы полученного множества (выборки)
+        while(rs.next()){
+            System.out.println(rs.getLong(1) + " : " + rs.getString(2));
+        }
+
+        //хз
         //buildStudentOrder();
     }
 
