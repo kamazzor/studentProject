@@ -66,7 +66,11 @@ public class CityRegisterValidator {
             e.printStackTrace();
             status = AnswerCityRegisterItem.CityStatus.ERROR;
             error = new AnswerCityRegisterItem.CityError(IN_CODE, e.getMessage());
-
+            //обрабатываем непредусмотренные ошибки в конце
+        } catch (Exception e){
+            e.printStackTrace();
+            status = AnswerCityRegisterItem.CityStatus.ERROR;
+            error = new AnswerCityRegisterItem.CityError(IN_CODE, e.getMessage());
         }
 
         AnswerCityRegisterItem ans = new AnswerCityRegisterItem(status, person, error);

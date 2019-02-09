@@ -15,12 +15,19 @@ import edu.javacourse.studentorder.exception.TransportException;
 public class FakeCityRegisterChecker implements CityRegisterChecker{
     //константы для примера
     // их мы сравниваем с серией паспорта, образующейся в виде 1000 (или 2000) + номер заявки
+    //симулируем сигнал, что все участники прописаны, всё ок
     private static final String GOOD_1 = "1000";
     private static final String GOOD_2 = "2000";
+
+    //симулируем сигнал, что прописки нет хотя бы у кого-то и ошибок с ГРН нет
     private static final String BAD_1 = "1001";
     private static final String BAD_2 = "2001";
+
+    //симулируем сигнал, что есть ошибка из ГРН
     private static final String ERROR_1 = "1002";
     private static final String ERROR_2 = "2002";
+
+    //симулируем сигнал, что у нас транспортная ошибка
     private static final String ERROR_T_1 = "1003";
     private static final String ERROR_T_2 = "2003";
 
@@ -43,11 +50,11 @@ public class FakeCityRegisterChecker implements CityRegisterChecker{
                 res.setExisting(false);
             }
             if (ps.equals(ERROR_1) || ps.equals(ERROR_2)){
-                CityRegisterException ex = new CityRegisterException("1", "Fake ERROR");
+                CityRegisterException ex = new CityRegisterException("1", "GRN ERROR " + ps);
                 throw ex;
             }
             if (ps.equals(ERROR_T_1) || ps.equals(ERROR_T_2)){
-                TransportException ex = new TransportException("Transport ERROR");
+                TransportException ex = new TransportException("Transport ERROR " + ps);
                 throw ex;
             }
         }
