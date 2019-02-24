@@ -9,7 +9,7 @@ import ru.javaproject.studentorder.exception.DaoException;
 import java.time.LocalDate;
 import java.util.List;
 
-//Сохраняет экземпляр студенческой заявки
+//Начальный класс программы
 public class SaveStudentOrder {
     public static void main(String[] args) throws DaoException {
 
@@ -39,9 +39,11 @@ public class SaveStudentOrder {
 //        for (CountryArea c : ca1) {
 //            System.out.println(c.getAreaId() + " : " + c.getAreaName());
 //        }
-
+//        Тестовое заполнение студенческо заявки не из веб-формы
         StudentOrder s = buildStudentOrder(10);
+        //Создаем экземпляр объекта для работы с БД
         StudentOrderDao dao = new StudentOrderDaoImpl();
+        //Сохраняем экземпляр студенческой заявки в БД
         Long id = dao.saveStudentOrder(s);
         System.out.println(id);
 
@@ -98,7 +100,7 @@ public class SaveStudentOrder {
         Child child1 = new Child("Петрова", "Ирина",
                 "Викторовна", LocalDate.of(2018, 6, 29));
         child1.setCertificateNumber("" + (300000 + id));
-        child1.setIssueDate(LocalDate.of(2018, 7, 19));
+        child1.setIssueDate(LocalDate.of(2018, 6, 11));
         //Создал тестовый экземпляр Паспортного стола ребенка1 из заявки для проверки системы
         RegisterOffice ro2 = new RegisterOffice(2L, "", "");
         child1.setIssueDepartment(ro2);
