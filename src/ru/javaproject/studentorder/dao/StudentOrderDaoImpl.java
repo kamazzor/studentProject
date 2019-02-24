@@ -119,8 +119,12 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
             for (Child child : so.getChildren()) {
                 stmt.setLong(1, soId);
                 setParamsForChild(stmt, child);
-                stmt.executeUpdate();
+                //добавляем группу команд цикла в партию Batch для накопления команд
+                //и будущего их исполнения
+                stmt.addBatch();
             }
+            //исполняем всю партию команда Batch сразу
+            stmt.executeBatch();
         }
     }
 
