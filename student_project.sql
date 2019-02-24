@@ -5,40 +5,42 @@ DROP TABLE IF EXISTS jc_passport_office;
 DROP TABLE IF EXISTS jc_country_struct;
 DROP TABLE IF EXISTS jc_street;
 
-/* Таблица улиц */
+--    Таблица улиц
 CREATE TABLE jc_street(
-	street_code integer not null,           /* Код улицы */
-	street_name varchar(300),               /* Название улицы */
+	street_code integer not null,           -- Код улицы
+	street_name varchar(300),               -- Название улицы
 	PRIMARY KEY (street_code)
 );
-/* Таблица населенных пунктов */
+--    Таблица населенных пунктов
 CREATE TABLE jc_country_struct(
-	area_id char(12) not null,              /* Код населенного пункта типа ОКАТО */
-	area_name varchar(200),                 /* Название населенного пункта */
+	area_id char(12) not null,              -- Код населенного пункта типа ОКАТО
+	area_name varchar(200),                 -- Название населенного пункта
 	PRIMARY KEY (area_id)
 );
-/* Таблица органов, выдающих паспорт */
+--    Таблица органов, выдающих паспорт
 CREATE TABLE jc_passport_office(
-	p_office_id integer not null,           /* ID органа, выдавшего паспорт */
-	p_office_area_id char(12) not null,     /* ID населенного пункта (ОКАТО), выдавшего паспорт */
-	p_office_name varchar(200),             /* Название органа, выдавшего паспорт */
+	p_office_id integer not null,           -- ID органа, выдавшего паспорт
+	p_office_area_id char(12) not null,     -- ID населенного пункта (ОКАТО), выдавшего паспорт
+	p_office_name varchar(200),             -- Название органа, выдавшего паспорт
 	PRIMARY KEY (p_office_id),
 	FOREIGN KEY (p_office_area_id) REFERENCES jc_country_struct(area_id) ON DELETE RESTRICT
 );
-/* Таблица ЗАГСов */
+--    Таблица ЗАГСов
 CREATE TABLE jc_register_office(
-	r_office_id integer not null,           /* ID ЗАГСа */
-	r_office_area_id char(12) not null,     /* ID населенного пункта (ОКАТО), где находится ЗАГС */
-	r_office_name varchar(200),             /* Название ЗАГСа */
+	r_office_id integer not null,           -- ID ЗАГСа
+	r_office_area_id char(12) not null,     -- ID населенного пункта (ОКАТО), где находится ЗАГС
+	r_office_name varchar(200),             -- Название ЗАГСа
 	PRIMARY KEY (r_office_id),
 	FOREIGN KEY (r_office_area_id) REFERENCES jc_country_struct(area_id) ON DELETE RESTRICT
 );
 
-/* Таблица студенческих заявок */
+--    Таблица студенческих заявок
 CREATE TABLE jc_student_order(
     student_order_id SERIAL,
+    student_order_date timestamp not null,
+    student_order_status int,
 
-    /* Данные мужа */
+--    Данные мужа
     h_sur_name varchar(100) not null,
     h_given_name varchar(100) not null,
     h_patronymic varchar(100) not null,
@@ -53,7 +55,7 @@ CREATE TABLE jc_student_order(
     h_extension varchar(10),
     h_apartment varchar(10),
 
-    /* Данные жены */
+--    Данные жены
     w_sur_name varchar(100) not null,
     w_given_name varchar(100) not null,
     w_patronymic varchar(100) not null,
@@ -68,7 +70,7 @@ CREATE TABLE jc_student_order(
     w_extension varchar(10),
     w_apartment varchar(10),
 
-    /* Данные о браке */
+--    Данные о браке
     certificate_id varchar(20) not null,
     register_office_id integer not null,
     marriage_date date not null,
@@ -78,15 +80,15 @@ CREATE TABLE jc_student_order(
     FOREIGN KEY (w_street_code) REFERENCES jc_street(street_code) ON DELETE RESTRICT,
     FOREIGN KEY (register_office_id) REFERENCES jc_register_office(r_office_id) ON DELETE RESTRICT
 
-    /* To be continued */
+--    To be continued
 );
 
-/* Таблица детей */
+--    Таблица детей
 CREATE TABLE jc_student_child (
 
-    /* Данные ребенка */
-    student_child_id SERIAL,            /* ID записи ребенка */
-    student_order_id integer not null,  /* ID студенческого заявления */
+--    Данные ребенка
+    student_child_id SERIAL,            -- ID записи ребенка
+    student_order_id integer not null,  -- ID студенческого заявления
     c_sur_name varchar(100) not null,
     c_given_name varchar(100) not null,
     c_patronymic varchar(100) not null,
