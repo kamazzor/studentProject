@@ -138,8 +138,13 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
                 StudentOrder so = new StudentOrder();
                 //Запускаем методы для заполнения экземпляра студенческой заявки
                 // на основе полученных данных текущей заявки из БД
-                fillStudentOrder(rs, so);       //Заполняем Header
-                fillMarriage(rs, so);           //Заполняем данные о браке
+                fillStudentOrder(rs, so);                       //Заполняем Header
+                fillMarriage(rs, so);                           //Заполняем данные о браке
+
+                Adult husband = fillAdult(rs, "h_");    //Заполняем экземпляр мужа
+                Adult wife = fillAdult(rs, "w_");       //Заполняем экземпляр жены
+                so.setHusband(husband);
+                so.setWife(wife);
 
                 //добавляем заполненную из БД студенческую заявку в возвращаемый ResultSet
                 result.add(so);
@@ -153,6 +158,38 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
 
         return result;
     }
+    //Метод заполняет данные в adult и возвращает его.
+    private Adult fillAdult(ResultSet rs, String prefix) throws SQLException {
+
+        Adult adult = new Adult();
+        adult.setSurName(rs.getString(prefix + "sur_name"));
+        adult.setGivenName(rs.getString(prefix + "given_name"));
+        adult.setPatronymic(rs.getString(prefix + "patronymic"));
+        adult.setDateOfBirth(rs.getDate(prefix + "date_of_birth").toLocalDate());
+        adult.setPassportSeria(rs.getString(prefix + "passport_seria"));
+        adult.setPassportNumber(rs.getString(prefix + "passport_number"));
+        adult.setIssueDate(rs.getDate(prefix + "passport_date").toLocalDate());
+        // TODO: 2/25/2019 get 2nd & 3rd parameters of temporary PassportOffice - from DB
+        PassportOffice po = new PassportOffice(rs.getLong(prefix + "passport_office_id"), "", "");
+        adult.setIssueDepartment(po);
+
+        Address address = new Address();
+        address.setPostCode(rs.getString(prefix + "post_index"));
+        // TODO: 2/25/2019 get 2nd & 3rd parameters of temporary Street - from DB
+        Street street = new Street(rs.getLong(prefix + "street_code"), "");
+        address.setStreet(street);
+        address.setBuilding(rs.getString(prefix + "building"));
+        address.setExtention(rs.getString(prefix + "extension"));
+        address.setApartment(rs.getString(prefix + "apartment"));
+        adult.setAddress(address);
+
+        University uni = new University(rs.getLong(prefix + "university_id"), "");
+        adult.setUniversity(uni);
+        adult.setStudentId(rs.getString(prefix + "student_number"));
+
+
+        return adult;
+    }
 
     //Метод для заполнения Header у экземпляра студенческой заявки на основе
     //полученных данных текущей заявки из БД
@@ -161,6 +198,7 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
         //Заполняем Header
         so.setStudentOrderId(rs.getLong("student_order_id"));
         so.setStudentOrderDate(rs.getTimestamp("student_order_date").toLocalDateTime());
+
         so.setStudentOrderStatus(StudentOrderStatus.fromValue(rs.getInt("student_order_status")));
 
         //Заполняем данные о браке
