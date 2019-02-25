@@ -42,6 +42,7 @@ CREATE TABLE jc_university (
 );
 --    Таблица студенческих заявок
 CREATE TABLE jc_student_order(
+--    Заглавные данные (Header)
     student_order_id SERIAL,
     student_order_date timestamp not null,
     student_order_status int,

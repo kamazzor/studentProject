@@ -6,6 +6,8 @@ import ru.javaproject.studentorder.exception.DaoException;
 
 import java.sql.*;
 import java.time.LocalDateTime;
+import java.util.LinkedList;
+import java.util.List;
 
 //Этот класс реализует интерфейс StudentOrderDao,
 //описывающий методы для сохранения данных студенческой заявки
@@ -39,6 +41,12 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
             "VALUES (?, ?, ?, ?, " +
                     "?, ?, ?, ?, " +
                     "?, ?, ?, ?, ?);";
+
+    //Получаем из БД студенческие заявки со статусом 0 (необработанная),
+    // сортируя их по дате подачи заявки
+    private static final String SELECT_ORDERS =
+            "SELECT * FROM jc_student_order " +
+                    "WHERE student_order_status = 0 ORDER BY student_order_date";
 
     // TODO: 2/23/2019 refactoring - make one method
     //    Соединяюсь с БД, указывая её конкретную принадлежность к СУБД PostgreSQL
@@ -110,8 +118,66 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
             throw new DaoException(ex);
         }
 
-        // TODO: 2/23/2019 end this function
         return result;
+
+    }
+
+    //Реализация метода получения данных студенческих заявок из БД со статусом 0 (START)
+    @Override
+    public List<StudentOrder> getStudentOrders() throws DaoException {
+        List<StudentOrder> result = new LinkedList<>();
+
+        try (Connection con = getConnection();
+             PreparedStatement stmt = con.prepareStatement(SELECT_ORDERS)) {
+
+            //Получаем список студенческих заявок
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()){
+                //Формируем студенческую заявку на основе
+                // полученных данных текущей заявки из БД
+                StudentOrder so = new StudentOrder();
+                //Запускаем методы для заполнения экземпляра студенческой заявки
+                // на основе полученных данных текущей заявки из БД
+                fillStudentOrder(rs, so);       //Заполняем Header
+                fillMarriage(rs, so);           //Заполняем данные о браке
+
+                //добавляем заполненную из БД студенческую заявку в возвращаемый ResultSet
+                result.add(so);
+            }
+
+            rs.close();
+
+        }catch(SQLException ex){
+            throw new DaoException(ex);
+        }
+
+        return result;
+    }
+
+    //Метод для заполнения Header у экземпляра студенческой заявки на основе
+    //полученных данных текущей заявки из БД
+
+    private void fillStudentOrder(ResultSet rs, StudentOrder so) throws SQLException {
+        //Заполняем Header
+        so.setStudentOrderId(rs.getLong("student_order_id"));
+        so.setStudentOrderDate(rs.getTimestamp("student_order_date").toLocalDateTime());
+        so.setStudentOrderStatus(StudentOrderStatus.fromValue(rs.getInt("student_order_status")));
+
+        //Заполняем данные о браке
+
+    }
+
+
+    private void fillMarriage(ResultSet rs, StudentOrder so) throws SQLException {
+        so.setMarriageCertificateId(rs.getString("certificate_id"));        //ID сертификата о браке
+        so.setMarriageDate(rs.getDate("marriage_date").toLocalDate());      //Дата брака
+
+        Long roId = rs.getLong("register_office_id");                       //ID ЗАГСа брака
+        // TODO: 2/25/2019 get 2nd & 3rd parameters of RegisterOffice() from DB
+        RegisterOffice ro = new RegisterOffice(roId, "", "");
+        so.setMarriageOffice(ro);
+
+        // TODO: 2/25/2019 set another fields of StudentOrder from DB
 
     }
 
