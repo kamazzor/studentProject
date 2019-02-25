@@ -17,17 +17,19 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
                     "student_order_date, student_order_status, h_sur_name, h_given_name, " +
                     "h_patronymic, h_date_of_birth, h_passport_seria, h_passport_number, h_passport_date, " +
                     "h_passport_office_id, h_post_index, h_street_code, h_building, h_extension, " +
-                    "h_apartment, w_sur_name, w_given_name, w_patronymic, w_date_of_birth, " +
-                    "w_passport_seria, w_passport_number, w_passport_date, w_passport_office_id, w_post_index, " +
-                    "w_street_code, w_building, w_extension, w_apartment, certificate_id, " +
-                    "register_office_id, marriage_date)" +
+                    "h_apartment, h_university_id, h_student_number, w_sur_name, w_given_name, " +
+                    "w_patronymic, w_date_of_birth, w_passport_seria, w_passport_number, w_passport_date, " +
+                    "w_passport_office_id, w_post_index, w_street_code, w_building, w_extension, " +
+                    "w_apartment, w_university_id, w_student_number, certificate_id, register_office_id, " +
+                    "marriage_date)" +
             "VALUES (?, ?, ?, ?, " +
                     "?, ?, ?, ?, ?, " +
                     "?, ?, ?, ?, ?, " +
                     "?, ?, ?, ?, ?, " +
                     "?, ?, ?, ?, ?, " +
                     "?, ?, ?, ?, ?, " +
-                    "?, ?);";
+                    "?, ?, ?, ?, ?, " +
+                    "?);";
 
     private static final String INSERT_CHILD =
             "INSERT INTO jc_student_child(" + 
@@ -51,7 +53,8 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
     //Метод сохраняет студенческую заявку в БД, возвращая на данном этапе (46) id последней записанной в БД заявки
     @Override
     public Long saveStudentOrder(StudentOrder so) throws DaoException {
-        //Возвращаем сгенерированный Id переданнойстуденческой заявки из таблицы jc_student_order
+        //Возвращаем сгенерированный Id переданной студенческой заявки
+        // из столбца student_order_id таблицы jc_student_order
         Long result = -1L;
 
         //       Создаем экземпляр соединения с БД внутри try...catch
@@ -73,12 +76,12 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
 
                 //Муж и жена, где start - стартовое значение индекса параметра sql-запроса
                 setParamsForAdult(stmt, 3, so.getHusband());
-                setParamsForAdult(stmt, 16, so.getWife());
+                setParamsForAdult(stmt, 18, so.getWife());
 
                 //Данные брака
-                stmt.setString(29, so.getMarriageCertificateId());              //ID сертификата брака
-                stmt.setLong(30, so.getMarriageOffice().getOfficeId());         //ID ЗАГСа брака
-                stmt.setDate(31, Date.valueOf(so.getMarriageDate()));           //Дата брака
+                stmt.setString(33, so.getMarriageCertificateId());              //ID сертификата брака
+                stmt.setLong(34, so.getMarriageOffice().getOfficeId());         //ID ЗАГСа брака
+                stmt.setDate(35, Date.valueOf(so.getMarriageDate()));           //Дата брака
 
                 //Подтверждаем, что модификацию данных закончили, возвращая кол-во модифицированнхы записей (не параметров)
                 stmt.executeUpdate();
@@ -143,6 +146,8 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
         stmt.setDate(start+6, Date.valueOf(adult.getIssueDate()));          //срок действия паспорта
         stmt.setLong(start+7, adult.getIssueDepartment().getOfficeId());   //ID отдела, выдавшего паспорт
         setParamsForAddress(stmt, start+8, adult);
+        stmt.setLong(start+13, adult.getUniversity().getUniversityId());    //ID университета у взрослого
+        stmt.setString(start+14, adult.getStudentId());                     //Номер студенческого у взрослого
     }
 
     private void setParamsForPerson(PreparedStatement stmt, int start, Person person) throws SQLException {

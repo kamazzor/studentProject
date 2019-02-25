@@ -1,5 +1,6 @@
 DROP TABLE IF EXISTS jc_student_child;
 DROP TABLE IF EXISTS jc_student_order;
+DROP TABLE IF EXISTS jc_university;
 DROP TABLE IF EXISTS jc_register_office;
 DROP TABLE IF EXISTS jc_passport_office;
 DROP TABLE IF EXISTS jc_country_struct;
@@ -33,7 +34,12 @@ CREATE TABLE jc_register_office(
 	PRIMARY KEY (r_office_id),
 	FOREIGN KEY (r_office_area_id) REFERENCES jc_country_struct(area_id) ON DELETE RESTRICT
 );
-
+-- Таблица университетов СПб
+CREATE TABLE jc_university (
+    university_id integer not null,
+    university_name varchar(300),
+    PRIMARY KEY (university_id)
+);
 --    Таблица студенческих заявок
 CREATE TABLE jc_student_order(
     student_order_id SERIAL,
@@ -54,6 +60,8 @@ CREATE TABLE jc_student_order(
     h_building varchar(10) not null,
     h_extension varchar(10),
     h_apartment varchar(10),
+    h_university_id integer not null,
+    h_student_number varchar(30),
 
 --    Данные жены
     w_sur_name varchar(100) not null,
@@ -69,6 +77,8 @@ CREATE TABLE jc_student_order(
     w_building varchar(10) not null,
     w_extension varchar(10),
     w_apartment varchar(10),
+    w_university_id integer not null,
+    w_student_number varchar(30) not null,
 
 --    Данные о браке
     certificate_id varchar(20) not null,
@@ -77,7 +87,11 @@ CREATE TABLE jc_student_order(
 
     PRIMARY KEY (student_order_id),
     FOREIGN KEY (h_street_code) REFERENCES jc_street(street_code) ON DELETE RESTRICT,
+    FOREIGN KEY (h_passport_office_id) REFERENCES jc_passport_office(p_office_id) ON DELETE RESTRICT,
+    FOREIGN KEY (h_university_id) REFERENCES jc_university(university_id) ON DELETE RESTRICT,
     FOREIGN KEY (w_street_code) REFERENCES jc_street(street_code) ON DELETE RESTRICT,
+    FOREIGN KEY (w_passport_office_id) REFERENCES jc_passport_office(p_office_id) ON DELETE RESTRICT,
+    FOREIGN KEY (w_university_id) REFERENCES jc_university(university_id) ON DELETE RESTRICT,
     FOREIGN KEY (register_office_id) REFERENCES jc_register_office(r_office_id) ON DELETE RESTRICT
 
 --    To be continued

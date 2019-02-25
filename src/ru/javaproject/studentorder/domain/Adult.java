@@ -3,12 +3,12 @@ package ru.javaproject.studentorder.domain;
 import java.time.LocalDate;
 
 public class Adult extends Person {
-    private String passportSeria;
-    private String passportNumber;
-    private LocalDate issueDate;        // срок действия паспорта
-    private PassportOffice issueDepartment;     // департамент, выдавший паспорт
-    private String university;      // название университета, где учится
-    private String studentId;
+    private String passportSeria;               //Серия паспорта
+    private String passportNumber;              //Номер паспорта
+    private LocalDate issueDate;                //Срок действия паспорта
+    private PassportOffice issueDepartment;     //Департамент, выдавший паспорт
+    private University university;              //Университет, где учится
+    private String studentId;                   //Номер студенческого удостоверения
 
     public Adult() {
     }
@@ -17,12 +17,11 @@ public class Adult extends Person {
         super(surName, givenName, patronymic, dateOfBirth);
     }
 
-
-    public String getUniversity() {
+    public University getUniversity() {
         return university;
     }
 
-    public void setUniversity(String university) {
+    public void setUniversity(University university) {
         this.university = university;
     }
 
