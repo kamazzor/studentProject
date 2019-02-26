@@ -10,7 +10,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 //Этот класс реализует интерфейс StudentOrderDao,
-//описывающий методы для сохранения данных студенческой заявки
+//описывающий методы для сохранения данных студенческой заявки в базу данных
 public class StudentOrderDaoImpl implements StudentOrderDao {
 
     // Вставляем все данные студенческой заявки, кроме student_order_id, который генерируется автоматически
@@ -45,7 +45,8 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
     //Получаем из БД студенческие заявки со статусом 0 (необработанная),
     // сортируя их по дате подачи заявки
     private static final String SELECT_ORDERS =
-            "SELECT * FROM jc_student_order " +
+            "SELECT  so.*, ro.r_office_area_id, ro.r_office_name FROM jc_student_order so " +
+                    "INNER JOIN jc_register_office ro ON ro.r_office_id = so.register_office_id " +
                     "WHERE student_order_status = 0 ORDER BY student_order_date";
 
     // TODO: 2/23/2019 refactoring - make one method
@@ -122,6 +123,57 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
 
     }
 
+    //Сохраняем в БД в таблицу jc_student_order детей из студенческой заявки,
+    // передав в т.ч. сгенерированный ID студенческой заявки
+    private void saveChildren(Connection con, StudentOrder so, Long soId) throws SQLException {
+        try (PreparedStatement stmt = con.prepareStatement(INSERT_CHILD)) {
+            for (Child child : so.getChildren()) {
+                stmt.setLong(1, soId);
+                setParamsForChild(stmt, child);
+                //добавляем группу команд цикла в партию Batch для накопления команд
+                //и будущего их исполнения
+                stmt.addBatch();
+            }
+            //исполняем всю партию команда Batch сразу
+            stmt.executeBatch();
+        }
+    }
+    //Методы для задания параметров
+    private void setParamsForChild(PreparedStatement stmt, Child child) throws SQLException {
+        setParamsForPerson(stmt, 2, child);
+        stmt.setString(6, child.getCertificateNumber());
+        stmt.setDate(7, Date.valueOf(child.getIssueDate()));
+        stmt.setLong(8, child.getIssueDepartment().getOfficeId());
+        setParamsForAddress(stmt, 9, child);
+    }
+
+    private void setParamsForAdult(PreparedStatement stmt, int start, Adult adult) throws SQLException {
+        setParamsForPerson(stmt, start, adult);
+        stmt.setString(start+4, adult.getPassportSeria());                  // серия паспорта
+        stmt.setString(start+5, adult.getPassportNumber());                 // номер паспорта
+        stmt.setDate(start+6, Date.valueOf(adult.getIssueDate()));          //срок действия паспорта
+        stmt.setLong(start+7, adult.getIssueDepartment().getOfficeId());   //ID отдела, выдавшего паспорт
+        setParamsForAddress(stmt, start+8, adult);
+        stmt.setLong(start+13, adult.getUniversity().getUniversityId());    //ID университета у взрослого
+        stmt.setString(start+14, adult.getStudentId());                     //Номер студенческого у взрослого
+    }
+
+    private void setParamsForPerson(PreparedStatement stmt, int start, Person person) throws SQLException {
+        stmt.setString(start, person.getSurName());                                         //фамилия
+        stmt.setString(start + 1, person.getGivenName());                      //имя
+        stmt.setString(start + 2, person.getPatronymic());                     //отчество
+        stmt.setDate(start + 3, Date.valueOf(person.getDateOfBirth()));        // дата рождения
+    }
+
+    private void setParamsForAddress(PreparedStatement stmt, int start, Person person) throws SQLException {
+        Address p_address = person.getAddress();
+        stmt.setString(start, p_address.getPostCode());                                     //индекс
+        stmt.setLong(start+1, p_address.getStreet().getStreetCode());        //ID улицы в адресе регистрации
+        stmt.setString(start+2, p_address.getBuilding());                    //Здание в адресе регистрации
+        stmt.setString(start+3, p_address.getExtention());                   //Корпус в адресе регистрации
+        stmt.setString(start+4, p_address.getApartment());                   //Квартира в адресе регистрации
+    }
+
     //Реализация метода получения данных студенческих заявок из БД со статусом 0 (START)
     @Override
     public List<StudentOrder> getStudentOrders() throws DaoException {
@@ -191,9 +243,8 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
         return adult;
     }
 
-    //Метод для заполнения Header у экземпляра студенческой заявки на основе
+    //Метод для заполнения экземпляра студенческой заявки на основе
     //полученных данных текущей заявки из БД
-
     private void fillStudentOrder(ResultSet rs, StudentOrder so) throws SQLException {
         //Заполняем Header
         so.setStudentOrderId(rs.getLong("student_order_id"));
@@ -205,69 +256,18 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
 
     }
 
-
     private void fillMarriage(ResultSet rs, StudentOrder so) throws SQLException {
         so.setMarriageCertificateId(rs.getString("certificate_id"));        //ID сертификата о браке
         so.setMarriageDate(rs.getDate("marriage_date").toLocalDate());      //Дата брака
 
         Long roId = rs.getLong("register_office_id");                       //ID ЗАГСа брака
-        // TODO: 2/25/2019 get 2nd & 3rd parameters of RegisterOffice() from DB
-        RegisterOffice ro = new RegisterOffice(roId, "", "");
+        String areaId = rs.getString("r_office_area_id");
+        String areaName = rs.getString("r_office_name");
+        RegisterOffice ro = new RegisterOffice(roId, areaId, areaName);
         so.setMarriageOffice(ro);
 
         // TODO: 2/25/2019 set another fields of StudentOrder from DB
 
-    }
-
-    //Сохраняем в БД в таблицу jc_student_order детей из студенческой заявки,
-    // передав в т.ч. сгенерированный ID студенческой заявки
-    private void saveChildren(Connection con, StudentOrder so, Long soId) throws SQLException {
-        try (PreparedStatement stmt = con.prepareStatement(INSERT_CHILD)) {
-            for (Child child : so.getChildren()) {
-                stmt.setLong(1, soId);
-                setParamsForChild(stmt, child);
-                //добавляем группу команд цикла в партию Batch для накопления команд
-                //и будущего их исполнения
-                stmt.addBatch();
-            }
-            //исполняем всю партию команда Batch сразу
-            stmt.executeBatch();
-        }
-    }
-
-    private void setParamsForChild(PreparedStatement stmt, Child child) throws SQLException {
-        setParamsForPerson(stmt, 2, child);
-        stmt.setString(6, child.getCertificateNumber());
-        stmt.setDate(7, Date.valueOf(child.getIssueDate()));
-        stmt.setLong(8, child.getIssueDepartment().getOfficeId());
-        setParamsForAddress(stmt, 9, child);
-    }
-
-    private void setParamsForAdult(PreparedStatement stmt, int start, Adult adult) throws SQLException {
-        setParamsForPerson(stmt, start, adult);
-        stmt.setString(start+4, adult.getPassportSeria());                  // серия паспорта
-        stmt.setString(start+5, adult.getPassportNumber());                 // номер паспорта
-        stmt.setDate(start+6, Date.valueOf(adult.getIssueDate()));          //срок действия паспорта
-        stmt.setLong(start+7, adult.getIssueDepartment().getOfficeId());   //ID отдела, выдавшего паспорт
-        setParamsForAddress(stmt, start+8, adult);
-        stmt.setLong(start+13, adult.getUniversity().getUniversityId());    //ID университета у взрослого
-        stmt.setString(start+14, adult.getStudentId());                     //Номер студенческого у взрослого
-    }
-
-    private void setParamsForPerson(PreparedStatement stmt, int start, Person person) throws SQLException {
-        stmt.setString(start, person.getSurName());                                         //фамилия
-        stmt.setString(start + 1, person.getGivenName());                      //имя
-        stmt.setString(start + 2, person.getPatronymic());                     //отчество
-        stmt.setDate(start + 3, Date.valueOf(person.getDateOfBirth()));        // дата рождения
-    }
-
-    private void setParamsForAddress(PreparedStatement stmt, int start, Person person) throws SQLException {
-        Address p_address = person.getAddress();
-        stmt.setString(start, p_address.getPostCode());                                     //индекс
-        stmt.setLong(start+1, p_address.getStreet().getStreetCode());        //ID улицы в адресе регистрации
-        stmt.setString(start+2, p_address.getBuilding());                    //Здание в адресе регистрации
-        stmt.setString(start+3, p_address.getExtention());                   //Корпус в адресе регистрации
-        stmt.setString(start+4, p_address.getApartment());                   //Квартира в адресе регистрации
     }
 
 }

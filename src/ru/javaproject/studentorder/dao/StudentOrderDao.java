@@ -5,7 +5,7 @@ import ru.javaproject.studentorder.exception.DaoException;
 
 import java.util.List;
 
-//Интерфейс StudentOrderDao описывает методы для сохранения данных студенческой заявки
+//Интерфейс StudentOrderDao описывает методы для сохранения данных студенческой заявки  в базу данных
 public interface StudentOrderDao {
     //Метод сохранения данных студенческой заявки в БД
     Long saveStudentOrder (StudentOrder so) throws DaoException;
