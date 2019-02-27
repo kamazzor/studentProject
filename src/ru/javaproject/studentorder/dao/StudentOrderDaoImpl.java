@@ -33,6 +33,7 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
                     "?, ?, ?, ?, ?, " +
                     "?);";
 
+    // Вставляем данные о детях из студенческой заявки, кроме student_child_id - он SERIAL
     private static final String INSERT_CHILD =
             "INSERT INTO jc_student_child(" + 
                     "student_order_id, c_sur_name, c_given_name, c_patronymic, " +
@@ -42,12 +43,19 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
                     "?, ?, ?, ?, " +
                     "?, ?, ?, ?, ?);";
 
-    //Получаем из БД студенческие заявки со статусом 0 (необработанная),
-    // сортируя их по дате подачи заявки
+//    Получаем из БД студенческие заявки со статусом 0 (необработанная),
+//    сортируя их по дате подачи заявки. В таблицу присоединены данные о ID и названии
+//    паспортных столов мужа и жены
     private static final String SELECT_ORDERS =
-            "SELECT  so.*, ro.r_office_area_id, ro.r_office_name FROM jc_student_order so " +
+            "SELECT  so.*, ro.r_office_area_id, ro.r_office_name, " +
+                    "po_h.p_office_area_id as h_p_office_area_id, po_h.p_office_name as h_p_office_area_name, " +
+                    "po_w.p_office_area_id as w_p_office_area_id, po_w.p_office_name as w_p_office_area_name " +
+                    "FROM jc_student_order so " +
                     "INNER JOIN jc_register_office ro ON ro.r_office_id = so.register_office_id " +
-                    "WHERE student_order_status = 0 ORDER BY student_order_date";
+                    "INNER JOIN jc_passport_office po_h ON po_h.p_office_id = so.h_passport_office_id " +
+                    "INNER JOIN jc_passport_office po_w ON po_w.p_office_id = so.w_passport_office_id " +
+                    "WHERE student_order_status = 0 " +
+                    "ORDER BY student_order_date";
 
     // TODO: 2/23/2019 refactoring - make one method
     //    Соединяюсь с БД, указывая её конкретную принадлежность к СУБД PostgreSQL
@@ -221,8 +229,12 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
         adult.setPassportSeria(rs.getString(prefix + "passport_seria"));
         adult.setPassportNumber(rs.getString(prefix + "passport_number"));
         adult.setIssueDate(rs.getDate(prefix + "passport_date").toLocalDate());
-        // TODO: 2/25/2019 get 2nd & 3rd parameters of temporary PassportOffice - from DB
-        PassportOffice po = new PassportOffice(rs.getLong(prefix + "passport_office_id"), "", "");
+
+        //Данные о паспортном столе взрослого
+        Long poId = rs.getLong(prefix + "passport_office_id");
+        String poArea = rs.getString(prefix + "p_office_area_id");
+        String poName = rs.getString(prefix + "p_office_area_name");
+        PassportOffice po = new PassportOffice(poId, poArea, poName);
         adult.setIssueDepartment(po);
 
         Address address = new Address();
