@@ -1,5 +1,6 @@
 package ru.javaproject.studentorder.dao;
 
+import org.postgresql.core.SqlCommand;
 import ru.javaproject.studentorder.config.Config;
 import ru.javaproject.studentorder.domain.*;
 import ru.javaproject.studentorder.exception.DaoException;
@@ -8,6 +9,7 @@ import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 //Этот класс реализует интерфейс StudentOrderDao,
 //описывающий методы для сохранения данных студенческой заявки в базу данных
@@ -43,8 +45,8 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
                     "?, ?, ?, ?, " +
                     "?, ?, ?, ?, ?);";
 
-//    Получаем из БД студенческие заявки со статусом 0 (необработанная),
-//    сортируя их по дате подачи заявки. В таблицу присоединены данные о ID и названии
+//    Получаем из БД студенческие заявки со параметризованным статусом каждой из них (пока статус = START, т.е. 0,
+//    сортируя заявки по дате подачи заявки. В таблицу присоединены данные о ID и названии
 //    паспортных столов мужа и жены
     private static final String SELECT_ORDERS =
             "SELECT  so.*, ro.r_office_area_id, ro.r_office_name, " +
@@ -54,8 +56,17 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
                     "INNER JOIN jc_register_office ro ON ro.r_office_id = so.register_office_id " +
                     "INNER JOIN jc_passport_office po_h ON po_h.p_office_id = so.h_passport_office_id " +
                     "INNER JOIN jc_passport_office po_w ON po_w.p_office_id = so.w_passport_office_id " +
-                    "WHERE student_order_status = 0 " +
+                    "WHERE student_order_status = ? " +
                     "ORDER BY student_order_date";
+
+    // Получаем из БД детей ID Загсов и их названий . Детей выбираем только для ID студенческих хаявок, которые
+    // были получены из БД в getStudentOrders();
+    // TODO: 3/1/2019 Add parameters to query
+    private static final String SELECT_CHILD =
+            "SELECT soc.*, ro.r_office_area_id, ro.r_office_name " +
+                    "FROM jc_student_child soc " +
+                    "INNER JOIN jc_register_office ro ON ro.r_office_id = soc.c_register_office_id " +
+                    "WHERE soc.student_order_id IN ";
 
     // TODO: 2/23/2019 refactoring - make one method
     //    Соединяюсь с БД, указывая её конкретную принадлежность к СУБД PostgreSQL
@@ -112,6 +123,7 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
                 //Закрываем полученный список (необязательно, т.к. он закроется вместе с con,
                 // который находится в начальных скобках try(здесь)...catch
                 gkRs.close();
+
                 //Вставляем данные детей в БД, передав в том числе result - сгенерированный id студенческой заявки
                 saveChildren(con, so, result);
 
@@ -190,8 +202,12 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
         try (Connection con = getConnection();
              PreparedStatement stmt = con.prepareStatement(SELECT_ORDERS)) {
 
+            stmt.setInt(1, StudentOrderStatus.START.ordinal());
             //Получаем список студенческих заявок
             ResultSet rs = stmt.executeQuery();
+            //Создаем список ID студенческих заявок для вставки этих ID в SQL-запрос списка детей из этих заявок
+//            List<Long> ids = new LinkedList<>();
+
             while (rs.next()){
                 //Формируем студенческую заявку на основе
                 // полученных данных текущей заявки из БД
@@ -208,7 +224,18 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
 
                 //добавляем заполненную из БД студенческую заявку в возвращаемый ResultSet
                 result.add(so);
+//                ids.add(so.getStudentOrderId());
             }
+//            Ищем в БД детей из тех студенческих заявок, которые мы получили из БД
+            findChildren(con, result);
+
+            //Строим окончание SQL-запроса SELECT_CHILD - WHERE soc.student_order_id IN (id1, id2, id7, ...)
+            //добавляя в скобки id полученных из БД студенческих заявок.
+//            StringBuilder sb = new StringBuilder("(");
+//            for (Long id : ids) {
+//                sb.append((sb.length() > 1 ? "," : "") + String.valueOf(id));   //добавляем запятую после каждого id
+//            }
+//            sb.append(")");
 
             rs.close();
 
@@ -218,6 +245,23 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
 
         return result;
     }
+
+    //Метод для поиска детей из тех студенческих заявок, которые мы получили из БД
+    private void findChildren(Connection con, List<StudentOrder> result) throws SQLException{
+//        Строим окончание SQL-запроса SELECT_CHILD - WHERE soc.student_order_id IN (id1, id2, id7, ...), а именно:
+        //Делаем из студенческих заявок конвеер (поток), из каждой заявки вынимаем только её ID,
+        // затем склеиваем их через delimiter ",", добавляя скобки по бокам.
+        String cl = "(" + result.stream().map(so -> String.valueOf(so.getStudentOrderId()))
+                .collect(Collectors.joining(",")) + ")";
+
+        try(PreparedStatement stmt = con.prepareStatement(SELECT_CHILD + cl)){
+            ResultSet rs = stmt.executeQuery();
+            while(rs.next()){
+                System.out.println(rs.getLong(1) + " : " + rs.getString(3));
+            }
+        }
+    }
+
     //Метод заполняет данные в adult и возвращает его.
     private Adult fillAdult(ResultSet rs, String prefix) throws SQLException {
 

@@ -122,3 +122,11 @@ CREATE TABLE jc_student_child (
     FOREIGN KEY (c_register_office_id) REFERENCES jc_register_office(r_office_id) ON DELETE RESTRICT
 
 );
+
+
+
+--Временные команды
+--
+SELECT soc.*
+FROM jc_student_child soc
+INNER JOIN jc_register_office ON register_office_id = soc.c_register_office_id
