@@ -6,9 +6,11 @@ import ru.javaproject.studentorder.domain.*;
 import ru.javaproject.studentorder.exception.DaoException;
 
 import java.sql.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 //Этот класс реализует интерфейс StudentOrderDao,
@@ -248,21 +250,30 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
 
     //Метод для поиска детей из тех студенческих заявок, которые мы получили из БД
     private void findChildren(Connection con, List<StudentOrder> result) throws SQLException{
-//        Строим окончание SQL-запроса SELECT_CHILD - WHERE soc.student_order_id IN (id1, id2, id7, ...), а именно:
+        //Строим окончание SQL-запроса SELECT_CHILD - WHERE soc.student_order_id IN (id1, id2, id7, ...), а именно:
         //Делаем из студенческих заявок конвеер (поток), из каждой заявки вынимаем только её ID,
         // затем склеиваем их через delimiter ",", добавляя скобки по бокам.
         String cl = "(" + result.stream().map(so -> String.valueOf(so.getStudentOrderId()))
                 .collect(Collectors.joining(",")) + ")";
 
+        //Создаем Map для быстрого поиска объекта студенческого заявления по его id (не в БД).
+        Map<Long, StudentOrder> maps = result.stream().collect(Collectors
+                .toMap(so -> so.getStudentOrderId(), so -> so));
+
+        //Получаем детей для тех студенческих заявок, которые мы получили после запроса SELECT_ORDERS,
+        //после добавляем соответствующих детей в каждую студенческую заявку
         try(PreparedStatement stmt = con.prepareStatement(SELECT_CHILD + cl)){
             ResultSet rs = stmt.executeQuery();
             while(rs.next()){
-                System.out.println(rs.getLong(1) + " : " + rs.getString(3));
+                Child ch = fillChild(rs);
+                StudentOrder so = maps.get(rs.getLong("student_order_id"));
+                so.addChild(ch);
             }
         }
     }
 
     //Метод заполняет данные в adult и возвращает его.
+
     private Adult fillAdult(ResultSet rs, String prefix) throws SQLException {
 
         Adult adult = new Adult();
@@ -298,9 +309,9 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
 
         return adult;
     }
-
     //Метод для заполнения экземпляра студенческой заявки на основе
     //полученных данных текущей заявки из БД
+
     private void fillStudentOrder(ResultSet rs, StudentOrder so) throws SQLException {
         //Заполняем Header
         so.setStudentOrderId(rs.getLong("student_order_id"));
@@ -311,7 +322,6 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
         //Заполняем данные о браке
 
     }
-
     private void fillMarriage(ResultSet rs, StudentOrder so) throws SQLException {
         so.setMarriageCertificateId(rs.getString("certificate_id"));        //ID сертификата о браке
         so.setMarriageDate(rs.getDate("marriage_date").toLocalDate());      //Дата брака
@@ -324,6 +334,36 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
 
         // TODO: 2/25/2019 set another fields of StudentOrder from DB
 
+    }
+
+    private Child fillChild(ResultSet rs) throws SQLException {
+        String surName = rs.getString("c_sur_name");
+        String givenName = rs.getString("c_given_name");
+        String patronymic = rs.getString("c_patronymic");
+        LocalDate dateOfBirth = rs.getDate("c_date_of_birth").toLocalDate();
+
+        Child child = new Child(surName, givenName, patronymic, dateOfBirth);
+
+        child.setCertificateNumber(rs.getString("c_certificate_number"));
+        child.setIssueDate(rs.getDate("c_certificate_date").toLocalDate());
+
+        Long roId = rs.getLong("c_register_office_id");
+        String roArea = rs.getString("r_office_area_id");
+        String roName = rs.getString("r_office_name");
+        RegisterOffice ro = new RegisterOffice(roId, roArea, roName);
+        child.setIssueDepartment(ro);
+
+        Address address = new Address();
+        address.setPostCode(rs.getString( "c_post_index"));
+        // TODO: 3/1/2019 get 2nd & 3rd parameters of temporary Street - from DB
+        Street street = new Street(rs.getLong("c_street_code"), "");
+        address.setStreet(street);
+        address.setBuilding(rs.getString("c_building"));
+        address.setExtention(rs.getString("c_extension"));
+        address.setApartment(rs.getString("c_apartment"));
+        child.setAddress(address);
+
+        return child;
     }
 
 }

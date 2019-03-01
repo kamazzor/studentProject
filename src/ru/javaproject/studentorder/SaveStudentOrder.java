@@ -44,7 +44,7 @@ public class SaveStudentOrder {
 //        Создаем экземпляр объекта для работы с БД
         StudentOrderDao dao = new StudentOrderDaoImpl();
 //        Сохраняем экземпляр студенческой заявки в БД
-//        Long id = dao.saveStudentOrder(s);
+//        Long id = dao.saveStudentOrder(s);SELECT_ORDERS
 //        System.out.println(id+"\n");
 //
         List<StudentOrder> soList = dao.getStudentOrders();
