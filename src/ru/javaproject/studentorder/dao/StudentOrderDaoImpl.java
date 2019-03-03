@@ -8,6 +8,7 @@ import ru.javaproject.studentorder.exception.DaoException;
 import java.sql.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -61,14 +62,29 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
                     "WHERE student_order_status = ? " +
                     "ORDER BY student_order_date";
 
-    // Получаем из БД детей ID Загсов и их названий . Детей выбираем только для ID студенческих хаявок, которые
-    // были получены из БД в getStudentOrders();
-    // TODO: 3/1/2019 Add parameters to query
+    // Получаем из БД, таблицы детей, ID Загсов и их названий . Детей выбираем только для ID студенческих заявок,
+    // которые были получены из БД в getStudentOrders();
     private static final String SELECT_CHILD =
             "SELECT soc.*, ro.r_office_area_id, ro.r_office_name " +
                     "FROM jc_student_child soc " +
                     "INNER JOIN jc_register_office ro ON ro.r_office_id = soc.c_register_office_id " +
                     "WHERE soc.student_order_id IN ";
+
+    //Объединяем запросы SELECT_ORDERS и SELECT_CHILD в один запрос
+    private static final String SELECT_ORDERS_FULL =
+            "SELECT  so.*, ro.r_office_area_id, ro.r_office_name, " +
+                    "po_h.p_office_area_id as h_p_office_area_id, po_h.p_office_name as h_p_office_area_name, " +
+                    "po_w.p_office_area_id as w_p_office_area_id, po_w.p_office_name as w_p_office_area_name, " +
+                    "soc.*, ro_c.r_office_area_id, ro_c.r_office_name " +
+                    "FROM jc_student_order so " +
+                    "INNER JOIN jc_register_office ro ON ro.r_office_id = so.register_office_id " +
+                    "INNER JOIN jc_passport_office po_h ON po_h.p_office_id = so.h_passport_office_id " +
+                    "INNER JOIN jc_passport_office po_w ON po_w.p_office_id = so.w_passport_office_id " +
+                    "INNER JOIN jc_student_child soc ON soc.student_order_id = so.student_order_id " +
+                    "INNER JOIN jc_register_office ro_c ON ro_c.r_office_id = soc.c_register_office_id " +
+                    "WHERE student_order_status = ? " +
+                    "ORDER BY student_order_date";
+
 
     // TODO: 2/23/2019 refactoring - make one method
     //    Соединяюсь с БД, указывая её конкретную принадлежность к СУБД PostgreSQL
@@ -199,6 +215,52 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
     //Реализация метода получения данных студенческих заявок из БД со статусом 0 (START)
     @Override
     public List<StudentOrder> getStudentOrders() throws DaoException {
+        return getStudentOrdersOneSelect();
+//        return getStudentOrdersTwoSelect();
+    }
+
+    //Составляем полностью студенческие заявки из данных БД используя 1 общий SQL-запрос
+    private List<StudentOrder> getStudentOrdersOneSelect() throws DaoException {
+        List<StudentOrder> result = new LinkedList<>();
+
+        try (Connection con = getConnection();
+             PreparedStatement stmt = con.prepareStatement(SELECT_ORDERS_FULL)) {
+
+            //Создаем Map для проверки того, строили ли мы уже эту студенческую заявку или нет
+            Map<Long, StudentOrder> maps = new HashMap<>();
+
+            stmt.setInt(1, StudentOrderStatus.START.ordinal());
+            //Получаем список студенческих заявок
+            ResultSet rs = stmt.executeQuery();
+            //Создаем список ID студенческих заявок для вставки этих ID в SQL-запрос списка детей из этих заявок
+//            List<Long> ids = new LinkedList<>();
+
+            while (rs.next()){
+                Long soId = rs.getLong("student_order_id");
+                //Проверяем, строили ли мы уже эту студенческую заявку или нет
+                if (!maps.containsKey(soId)) {
+                    StudentOrder so = getFullStudentOrder(rs);
+
+                    //добавляем заполненную из БД студенческую заявку в возвращаемый ResultSet
+                    result.add(so);
+                    maps.put(soId, so);
+                }
+                StudentOrder so = maps.get(soId);
+                so.addChild(fillChild(rs));
+            }
+
+            rs.close();
+
+        }catch(SQLException ex){
+            throw new DaoException(ex);
+        }
+
+        return result;
+    }
+
+    //Составляем полностью студенческие заявки из данных БД используя 2 разных SQL-запроса
+    //SELECT_ORDER и SELECT_CHILD
+    private List<StudentOrder> getStudentOrdersTwoSelect() throws DaoException {
         List<StudentOrder> result = new LinkedList<>();
 
         try (Connection con = getConnection();
@@ -213,16 +275,7 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
             while (rs.next()){
                 //Формируем студенческую заявку на основе
                 // полученных данных текущей заявки из БД
-                StudentOrder so = new StudentOrder();
-                //Запускаем методы для заполнения экземпляра студенческой заявки
-                // на основе полученных данных текущей заявки из БД
-                fillStudentOrder(rs, so);                       //Заполняем Header
-                fillMarriage(rs, so);                           //Заполняем данные о браке
-
-                Adult husband = fillAdult(rs, "h_");    //Заполняем экземпляр мужа
-                Adult wife = fillAdult(rs, "w_");       //Заполняем экземпляр жены
-                so.setHusband(husband);
-                so.setWife(wife);
+                StudentOrder so = getFullStudentOrder(rs);
 
                 //добавляем заполненную из БД студенческую заявку в возвращаемый ResultSet
                 result.add(so);
@@ -248,32 +301,25 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
         return result;
     }
 
-    //Метод для поиска детей из тех студенческих заявок, которые мы получили из БД
-    private void findChildren(Connection con, List<StudentOrder> result) throws SQLException{
-        //Строим окончание SQL-запроса SELECT_CHILD - WHERE soc.student_order_id IN (id1, id2, id7, ...), а именно:
-        //Делаем из студенческих заявок конвеер (поток), из каждой заявки вынимаем только её ID,
-        // затем склеиваем их через delimiter ",", добавляя скобки по бокам.
-        String cl = "(" + result.stream().map(so -> String.valueOf(so.getStudentOrderId()))
-                .collect(Collectors.joining(",")) + ")";
+    //Метод для составления студенческой заявки из данныз БД, кроме данных про детей
+    //из этих ID
+    private StudentOrder getFullStudentOrder(ResultSet rs) throws SQLException {
+        //Формируем студенческую заявку на основе
+        // полученных данных текущей заявки из БД
+        StudentOrder so = new StudentOrder();
+        //Запускаем методы для заполнения экземпляра студенческой заявки
+        // на основе полученных данных текущей заявки из БД
+        fillStudentOrder(rs, so);                       //Заполняем Header
+        fillMarriage(rs, so);                           //Заполняем данные о браке
 
-        //Создаем Map для быстрого поиска объекта студенческого заявления по его id (не в БД).
-        Map<Long, StudentOrder> maps = result.stream().collect(Collectors
-                .toMap(so -> so.getStudentOrderId(), so -> so));
-
-        //Получаем детей для тех студенческих заявок, которые мы получили после запроса SELECT_ORDERS,
-        //после добавляем соответствующих детей в каждую студенческую заявку
-        try(PreparedStatement stmt = con.prepareStatement(SELECT_CHILD + cl)){
-            ResultSet rs = stmt.executeQuery();
-            while(rs.next()){
-                Child ch = fillChild(rs);
-                StudentOrder so = maps.get(rs.getLong("student_order_id"));
-                so.addChild(ch);
-            }
-        }
+        Adult husband = fillAdult(rs, "h_");    //Заполняем экземпляр мужа
+        Adult wife = fillAdult(rs, "w_");       //Заполняем экземпляр жены
+        so.setHusband(husband);
+        so.setWife(wife);
+        return so;
     }
 
     //Метод заполняет данные в adult и возвращает его.
-
     private Adult fillAdult(ResultSet rs, String prefix) throws SQLException {
 
         Adult adult = new Adult();
@@ -336,6 +382,31 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
 
     }
 
+    //Метод для поиска детей из тех студенческих заявок, которые мы получили из БД
+    private void findChildren(Connection con, List<StudentOrder> result) throws SQLException{
+        //Строим окончание SQL-запроса SELECT_CHILD - WHERE soc.student_order_id IN (id1, id2, id7, ...), а именно:
+        //Делаем из студенческих заявок конвеер (поток), из каждой заявки вынимаем только её ID,
+        // затем склеиваем их через delimiter ",", добавляя скобки по бокам.
+        String cl = "(" + result.stream().map(so -> String.valueOf(so.getStudentOrderId()))
+                .collect(Collectors.joining(",")) + ")";
+
+        //Создаем Map для быстрого поиска объекта студенческого заявления по его id (не в БД).
+        Map<Long, StudentOrder> maps = result.stream().collect(Collectors
+                .toMap(so -> so.getStudentOrderId(), so -> so));
+
+        //Получаем детей для тех студенческих заявок, которые мы получили после запроса SELECT_ORDERS,
+        //после добавляем соответствующих детей в каждую студенческую заявку
+        try(PreparedStatement stmt = con.prepareStatement(SELECT_CHILD + cl)){
+            ResultSet rs = stmt.executeQuery();
+            while(rs.next()){
+                Child ch = fillChild(rs);
+                StudentOrder so = maps.get(rs.getLong("student_order_id"));
+                so.addChild(ch);
+            }
+        }
+    }
+
+    //Заполняем экземпляр ребенка данными из БД
     private Child fillChild(ResultSet rs) throws SQLException {
         String surName = rs.getString("c_sur_name");
         String givenName = rs.getString("c_given_name");
