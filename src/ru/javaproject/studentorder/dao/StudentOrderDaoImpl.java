@@ -60,7 +60,7 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
                     "INNER JOIN jc_passport_office po_h ON po_h.p_office_id = so.h_passport_office_id " +
                     "INNER JOIN jc_passport_office po_w ON po_w.p_office_id = so.w_passport_office_id " +
                     "WHERE student_order_status = ? " +
-                    "ORDER BY student_order_date";
+                    "ORDER BY student_order_date LIMIT ?";
 
     // Получаем из БД, таблицы детей, ID Загсов и их названий . Детей выбираем только для ID студенческих заявок,
     // которые были получены из БД в getStudentOrders();
@@ -70,7 +70,8 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
                     "INNER JOIN jc_register_office ro ON ro.r_office_id = soc.c_register_office_id " +
                     "WHERE soc.student_order_id IN ";
 
-    //Объединяем запросы SELECT_ORDERS и SELECT_CHILD в один запрос
+    //Получаем полностью все данные студенческих заявлений,
+    // объединив запросы SELECT_ORDERS и SELECT_CHILD в один запрос
     private static final String SELECT_ORDERS_FULL =
             "SELECT  so.*, ro.r_office_area_id, ro.r_office_name, " +
                     "po_h.p_office_area_id as h_p_office_area_id, po_h.p_office_name as h_p_office_area_name, " +
@@ -83,7 +84,7 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
                     "INNER JOIN jc_student_child soc ON soc.student_order_id = so.student_order_id " +
                     "INNER JOIN jc_register_office ro_c ON ro_c.r_office_id = soc.c_register_office_id " +
                     "WHERE student_order_status = ? " +
-                    "ORDER BY student_order_date";
+                    "ORDER BY so.student_order_id LIMIT ?";
 
 
     // TODO: 2/23/2019 refactoring - make one method
@@ -230,11 +231,17 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
             Map<Long, StudentOrder> maps = new HashMap<>();
 
             stmt.setInt(1, StudentOrderStatus.START.ordinal());
-            //Получаем список студенческих заявок
+            int limit = Integer.parseInt(Config.getProperty(Config.DB_LIMIT));
+            stmt.setInt(2, limit);
+
+            //Получаем результат запроса SELECT_ORDERS_FULL
             ResultSet rs = stmt.executeQuery();
             //Создаем список ID студенческих заявок для вставки этих ID в SQL-запрос списка детей из этих заявок
 //            List<Long> ids = new LinkedList<>();
 
+            //Сделали счетчик для посчета обработанных строк
+            // результата запроса SELECT_ORDERS_FULL
+            int counter = 0;
             while (rs.next()){
                 Long soId = rs.getLong("student_order_id");
                 //Проверяем, строили ли мы уже эту студенческую заявку или нет
@@ -247,6 +254,13 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
                 }
                 StudentOrder so = maps.get(soId);
                 so.addChild(fillChild(rs));
+                counter++;
+            }
+
+            //Проверяем, считали ли мы строк >=димита из результата запроса SELECT_ORDERS_FULL.
+            // Если да, то удаляем лишнюю запись из списка взятых в работу студенческих заявок
+            if (counter >= limit){
+                result.remove(result.size() - 1);
             }
 
             rs.close();
@@ -267,6 +281,7 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
              PreparedStatement stmt = con.prepareStatement(SELECT_ORDERS)) {
 
             stmt.setInt(1, StudentOrderStatus.START.ordinal());
+            stmt.setInt(2, Integer.parseInt(Config.getProperty(Config.DB_LIMIT)));
             //Получаем список студенческих заявок
             ResultSet rs = stmt.executeQuery();
             //Создаем список ID студенческих заявок для вставки этих ID в SQL-запрос списка детей из этих заявок
@@ -368,6 +383,7 @@ public class StudentOrderDaoImpl implements StudentOrderDao {
         //Заполняем данные о браке
 
     }
+
     private void fillMarriage(ResultSet rs, StudentOrder so) throws SQLException {
         so.setMarriageCertificateId(rs.getString("certificate_id"));        //ID сертификата о браке
         so.setMarriageDate(rs.getDate("marriage_date").toLocalDate());      //Дата брака
